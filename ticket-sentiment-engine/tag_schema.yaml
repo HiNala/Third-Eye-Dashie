@@ -1,0 +1,30 @@
+# Controlled vocabulary for ticket tags.
+# The LLM is instructed to ONLY use values from these categories.
+# Update this file to add/remove allowed tags -- no code changes needed.
+
+sentiment:
+  - positive
+  - negative
+  - neutral
+
+emotional_tone:
+  - angry
+  - happy
+  - frustrated
+  - delighted
+  - neutral
+
+topics:
+  # To be defined later. Examples:
+  # - shipping
+  # - billing
+  # - product_quality
+  # - returns
+  # - account
+  # - technical_support
+
+priority:
+  - urgent
+  - high
+  - normal
+  - low
