@@ -69,6 +69,7 @@ async def test_ingest_and_retrieve():
         assert data["title"] == "Integration test ticket"
         assert data["customer_email"] == "integration@test.com"
         assert data["status"] == "open"
+        assert data["processing_status"] in ("pending", "completed")
 
 
 async def test_get_all_tickets():

@@ -1,1 +1,1 @@
-from app.models.ticket import Ticket, TicketEmbedding  # noqa: F401
+from app.models.ticket import ProcessedTicket, RawTicket, TicketEmbedding  # noqa: F401
