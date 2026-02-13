@@ -19,7 +19,8 @@ A Python-based microservice that lives in `ticket-sentiment-engine/` and provide
 | Database | **PostgreSQL** via SQLAlchemy + asyncpg | Robust relational store, JSONB for flexible tag/demographic data |
 | Vector DB | **pgvector** (PostgreSQL extension) | Keeps infra simple -- one DB process, semantic search via embeddings |
 | Embeddings | **OpenAI `text-embedding-3-small`** (or configurable) | Generates vectors for semantic search on ticket content |
-| LLM | **OpenAI GPT-4o-mini** (or configurable) | Sentiment + demographic extraction via structured output |
+| LLM | **Pluggable via config** (default: OpenAI GPT-4o-mini) | Sentiment + demographic extraction via structured output |
+| LLM Abstraction | **LLM Provider Interface** | Swap between OpenAI, Anthropic, local models, etc. via env var |
 | Migrations | **Alembic** | Schema versioning |
 | Containerization | **Docker + docker-compose** | PostgreSQL + pgvector + app in one command |
 
@@ -218,8 +219,14 @@ ticket-sentiment-engine/
         search.py        # Semantic search endpoint
     services/
       __init__.py
-      llm_service.py     # OpenAI calls for sentiment + demographics
-      embedding_service.py  # OpenAI embedding generation
+      llm/
+        __init__.py
+        base.py            # Abstract LLMProvider interface
+        openai_provider.py # OpenAI implementation
+        anthropic_provider.py # Anthropic implementation
+        local_provider.py  # Local/Ollama implementation
+        factory.py         # Returns provider based on LLM_PROVIDER env var
+      embedding_service.py  # Embedding generation (also provider-aware)
       processing.py      # Orchestrates the ingestion pipeline
     db/
       __init__.py
@@ -239,16 +246,57 @@ ticket-sentiment-engine/
 ## 7. Configuration (.env)
 
 ```
+# --- Database ---
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/tickets_db
-OPENAI_API_KEY=sk-...
-LLM_MODEL=gpt-4o-mini
+
+# --- LLM Provider (switch providers by changing LLM_PROVIDER) ---
+LLM_PROVIDER=openai                   # openai | anthropic | local
+LLM_MODEL=gpt-4o-mini                 # model name for the chosen provider
+OPENAI_API_KEY=sk-...                  # required if LLM_PROVIDER=openai
+ANTHROPIC_API_KEY=sk-ant-...           # required if LLM_PROVIDER=anthropic
+LOCAL_LLM_BASE_URL=http://localhost:11434  # required if LLM_PROVIDER=local (e.g. Ollama)
+
+# --- Embedding Provider (can differ from LLM provider) ---
+EMBEDDING_PROVIDER=openai              # openai | local
 EMBEDDING_MODEL=text-embedding-3-small
+
+# --- App ---
 APP_PORT=8000
 ```
 
 ---
 
-## 8. Implementation Phases
+## 8. LLM Provider Abstraction
+
+All LLM calls go through a `LLMProvider` interface so the provider can be swapped via a single env var (`LLM_PROVIDER`).
+
+```python
+# services/llm/base.py (simplified)
+class LLMProvider(ABC):
+    @abstractmethod
+    async def analyze_ticket(self, content: str, tag_schema: dict) -> AnalysisResult:
+        """Return sentiment, tags, demographics for a ticket."""
+        ...
+
+    @abstractmethod
+    async def generate_embedding(self, text: str) -> list[float]:
+        """Return embedding vector for semantic search."""
+        ...
+```
+
+The factory (`services/llm/factory.py`) reads `LLM_PROVIDER` from config and returns the correct implementation:
+
+- **`openai`** -- Uses `openai` SDK with structured outputs / JSON mode
+- **`anthropic`** -- Uses `anthropic` SDK with tool_use for structured extraction
+- **`local`** -- Hits an OpenAI-compatible API (e.g. Ollama, vLLM) at `LOCAL_LLM_BASE_URL`
+
+Each provider is responsible for formatting prompts and parsing responses into a shared `AnalysisResult` Pydantic model, so the rest of the app is provider-agnostic.
+
+Embedding provider can be configured independently (`EMBEDDING_PROVIDER`) since you may want a cloud LLM but local embeddings, or vice versa.
+
+---
+
+## 9. Implementation Phases
 
 ### Phase 1 -- MVP (this sprint)
 
@@ -272,7 +320,7 @@ APP_PORT=8000
 
 ---
 
-## 9. Key Risks and Decisions
+## 10. Key Risks and Decisions
 
 - **LLM tag conformance**: Mitigated by using OpenAI structured outputs (JSON mode / function calling) with explicit enum constraints. A validation layer will reject and retry if the LLM returns out-of-schema tags.
 - **Privacy (demographics)**: Only extract what customers explicitly mention. Add a `confidence` score and only surface high-confidence extractions. No inference from external data.
