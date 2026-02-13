@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     # Tag schema path (relative to this file's parent directory)
     tag_schema_path: str = str(Path(__file__).resolve().parent.parent / "tag_schema.yaml")
 
+    # Prompt directory (contains system.md and user_template.md)
+    prompt_dir: str = str(Path(__file__).resolve().parent.parent / "prompts")
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
