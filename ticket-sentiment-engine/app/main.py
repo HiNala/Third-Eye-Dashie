@@ -1,5 +1,6 @@
 """FastAPI application entry point."""
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -13,14 +14,16 @@ from app.db.base import Base
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
-    # Create tables if they don't exist (use Alembic in production)
-    async with engine.begin() as conn:
-        await conn.execute(
-            __import__("sqlalchemy").text("CREATE EXTENSION IF NOT EXISTS vector")
-        )
-        await conn.run_sync(Base.metadata.create_all)
+    # Skip DB init when running under pytest (tests manage their own DB setup)
+    if os.environ.get("PYTEST_CURRENT_TEST") is None:
+        async with engine.begin() as conn:
+            await conn.execute(
+                __import__("sqlalchemy").text("CREATE EXTENSION IF NOT EXISTS vector")
+            )
+            await conn.run_sync(Base.metadata.create_all)
     yield
-    await engine.dispose()
+    if os.environ.get("PYTEST_CURRENT_TEST") is None:
+        await engine.dispose()
 
 
 app = FastAPI(
