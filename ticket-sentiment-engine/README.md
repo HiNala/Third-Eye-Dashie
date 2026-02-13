@@ -75,6 +75,51 @@ Set `LLM_PROVIDER` in `.env`:
 
 Embedding provider is configured separately via `EMBEDDING_PROVIDER`.
 
+## Testing
+
+The project has both unit tests and integration tests.
+
+### Unit Tests (no Docker required)
+
+Tests Pydantic schemas, config loading, tag schema validation, and the LLM provider abstraction using a mock provider. Fast and self-contained.
+
+```bash
+source thirdeyedashie/bin/activate
+pytest tests/ -m "not integration" -v
+```
+
+### Integration Tests (requires Docker app running)
+
+Tests the full API against the live Docker app — ingestion, retrieval, tag/status updates, search, and health checks.
+
+```bash
+# Make sure the app is running first:
+docker compose up --build
+
+# Then in another terminal:
+source thirdeyedashie/bin/activate
+pytest tests/test_integration.py -v
+```
+
+### Run All Tests
+
+```bash
+pytest tests/ -v
+```
+
+### Test Structure
+
+```
+tests/
+├── conftest.py              # Shared fixtures (mock provider, tag schema)
+├── mock_llm.py              # Mock LLM provider (keyword-based, no API calls)
+├── test_config.py           # Settings, tag schema, enums
+├── test_tickets.py          # Pydantic schema validation
+├── test_ingest.py           # Ingestion schema validation
+├── test_llm_providers.py    # Mock LLM: sentiment, demographics, embeddings
+└── test_integration.py      # Live API tests against Docker app
+```
+
 ## Architecture
 
 See [PRD.md](PRD.md) for the full product requirements document.

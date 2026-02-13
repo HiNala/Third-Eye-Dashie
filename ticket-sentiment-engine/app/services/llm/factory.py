@@ -1,11 +1,17 @@
 """Factory that returns the correct LLM provider based on config."""
 
+import logging
+
 from app.config import LLMProviderType, settings
 from app.services.llm.base import LLMProvider
+
+logger = logging.getLogger("app.services.llm.factory")
 
 
 def get_llm_provider() -> LLMProvider:
     """Return an LLM provider instance based on the LLM_PROVIDER env var."""
+    logger.debug("Creating LLM provider: %s", settings.llm_provider.value)
+
     match settings.llm_provider:
         case LLMProviderType.OPENAI:
             from app.services.llm.openai_provider import OpenAIProvider
