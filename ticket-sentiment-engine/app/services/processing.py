@@ -78,7 +78,7 @@ async def process_ticket(ticket_id: uuid.UUID) -> None:
             if analysis.demographics:
                 demo = analysis.demographics
                 extracted = {
-                    k: v.value
+                    k: v["value"]
                     for k, v in demo.model_dump().items()
                     if v and v.get("value") is not None
                 }
