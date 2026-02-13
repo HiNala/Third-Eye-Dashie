@@ -7,6 +7,7 @@ import pytest
 
 from app.schemas.ticket import (
     IngestRequest,
+    ProcessingStatus,
     SearchRequest,
     TagItem,
     TicketIngestItem,
@@ -18,7 +19,7 @@ from app.schemas.ticket import (
 
 
 def test_ticket_response_from_dict():
-    """TicketResponse can be built from a dict (simulating ORM output)."""
+    """TicketResponse can be built from a dict (simulating joined raw+processed output)."""
     data = {
         "id": uuid.uuid4(),
         "title": "Test ticket",
@@ -30,6 +31,7 @@ def test_ticket_response_from_dict():
         "confidence": 0.95,
         "customer_email": "test@example.com",
         "status": "open",
+        "processing_status": "completed",
         "created_at": datetime.now(timezone.utc),
         "last_updated": datetime.now(timezone.utc),
     }
@@ -37,6 +39,24 @@ def test_ticket_response_from_dict():
     assert ticket.title == "Test ticket"
     assert ticket.sentiment.value == "positive"
     assert ticket.status == TicketStatus.OPEN
+    assert ticket.processing_status == ProcessingStatus.COMPLETED
+
+
+def test_ticket_response_pending_processing():
+    """TicketResponse defaults to pending processing status."""
+    data = {
+        "id": uuid.uuid4(),
+        "title": "Unprocessed ticket",
+        "content": "Content here",
+        "customer_email": "test@example.com",
+        "status": "open",
+        "created_at": datetime.now(timezone.utc),
+        "last_updated": datetime.now(timezone.utc),
+    }
+    ticket = TicketResponse(**data)
+    assert ticket.processing_status == ProcessingStatus.PENDING
+    assert ticket.sentiment is None
+    assert ticket.tags is None
 
 
 def test_ticket_status_enum():

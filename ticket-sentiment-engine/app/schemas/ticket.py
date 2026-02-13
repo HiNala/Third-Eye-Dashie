@@ -31,6 +31,11 @@ class EmotionalToneValue(str, Enum):
     NEUTRAL = "neutral"
 
 
+class ProcessingStatus(str, Enum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+
+
 # ---------- Tag ----------
 
 class TagItem(BaseModel):
@@ -53,9 +58,15 @@ class Demographics(BaseModel):
     age_bracket: DemographicField | None = None
 
 
-# ---------- Ticket Response ----------
+# ---------- Ticket Response (joined view: raw + processed) ----------
 
 class TicketResponse(BaseModel):
+    """Combined view of raw ticket data + LLM processing results.
+
+    The `id` is the raw_ticket_id — the stable, canonical identifier.
+    Processing fields (sentiment, tags, etc.) are None when not yet processed.
+    """
+
     id: uuid.UUID
     title: str
     content: str
@@ -66,6 +77,7 @@ class TicketResponse(BaseModel):
     confidence: float | None = None
     customer_email: str
     status: TicketStatus
+    processing_status: ProcessingStatus = ProcessingStatus.PENDING
     created_at: datetime
     last_updated: datetime
 
