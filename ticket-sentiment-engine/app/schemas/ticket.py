@@ -118,6 +118,12 @@ class UpdateStatusRequest(BaseModel):
     status: TicketStatus
 
 
+class UpdateAnalysisRequest(BaseModel):
+    """Manually override sentiment and/or emotional tone on a ticket."""
+    sentiment: SentimentValue | None = None
+    emotional_tone: EmotionalToneValue | None = None
+
+
 # ---------- Search ----------
 
 class SearchRequest(BaseModel):

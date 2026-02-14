@@ -19,6 +19,7 @@ from app.schemas.ticket import (
     ProcessingStatus,
     TicketListResponse,
     TicketResponse,
+    UpdateAnalysisRequest,
     UpdateStatusRequest,
     UpdateTagsRequest,
 )
@@ -153,4 +154,53 @@ async def update_ticket_status(
     raw_ticket.last_updated = datetime.now(timezone.utc)
     await db.flush()
     logger.info("Status updated for ticket %s: %s -> %s", ticket_id, old_status, raw_ticket.status)
+    return _build_ticket_response(raw_ticket)
+
+
+@router.post("/tickets/{ticket_id}/analysis", response_model=TicketResponse)
+async def update_ticket_analysis(
+    ticket_id: uuid.UUID,
+    body: UpdateAnalysisRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually override sentiment and/or emotional tone on a ticket.
+
+    Updates are applied to the processed_tickets row. If no processed record
+    exists yet, one is created to hold the manual overrides.
+    """
+    logger.info("Updating analysis for ticket %s: sentiment=%s, tone=%s", ticket_id, body.sentiment, body.emotional_tone)
+
+    result = await db.execute(
+        select(RawTicket)
+        .options(selectinload(RawTicket.processed_ticket))
+        .where(RawTicket.id == ticket_id)
+    )
+    raw_ticket = result.scalar_one_or_none()
+    if raw_ticket is None:
+        logger.warning("Ticket %s not found for analysis update", ticket_id)
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    processed = raw_ticket.processed_ticket
+
+    if processed:
+        if body.sentiment is not None:
+            old_val = processed.sentiment
+            processed.sentiment = body.sentiment.value
+            logger.info("Sentiment updated: %s -> %s", old_val, body.sentiment.value)
+        if body.emotional_tone is not None:
+            old_val = processed.emotional_tone
+            processed.emotional_tone = body.emotional_tone.value
+            logger.info("Emotional tone updated: %s -> %s", old_val, body.emotional_tone.value)
+        processed.last_updated = datetime.now(timezone.utc)
+    else:
+        processed = ProcessedTicket(
+            raw_ticket_id=ticket_id,
+            sentiment=body.sentiment.value if body.sentiment else None,
+            emotional_tone=body.emotional_tone.value if body.emotional_tone else None,
+        )
+        db.add(processed)
+        raw_ticket.processed_ticket = processed
+        logger.info("Created processed ticket for manual analysis on raw ticket %s", ticket_id)
+
+    await db.flush()
     return _build_ticket_response(raw_ticket)

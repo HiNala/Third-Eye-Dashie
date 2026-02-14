@@ -1,10 +1,11 @@
 "use client"
 
-import { use, useState, useCallback } from "react"
+import { use, useState, useCallback, useRef, useEffect } from "react"
 import Link from "next/link"
 import {
   ArrowLeft,
   Check,
+  CheckCheck,
   Loader2,
   Clock,
   Mail,
@@ -46,22 +47,37 @@ import { cn } from "@/lib/utils"
 import * as api from "@/lib/api-client"
 import type { TicketStatus } from "@/lib/types"
 
+interface SentReply {
+  id: string
+  text: string
+  sentAt: Date
+  status: "sending" | "delivered" | "read"
+}
+
 export default function TicketDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
   const resolvedParams = use(params)
-  const { ticket, loading } = useTicket(resolvedParams.id)
+  const { ticket, setTicket, loading } = useTicket(resolvedParams.id)
   const [currentStatus, setCurrentStatus] = useState<TicketStatus | null>(null)
   const [statusSaving, setStatusSaving] = useState(false)
   const [statusSaved, setStatusSaved] = useState(false)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [replyText, setReplyText] = useState("")
   const [replySending, setReplySending] = useState(false)
-  const [replySent, setReplySent] = useState(false)
+  const [sentReplies, setSentReplies] = useState<SentReply[]>([])
+  const threadEndRef = useRef<HTMLDivElement>(null)
 
   const displayStatus = currentStatus ?? ticket?.status ?? "open"
+
+  /* scroll to bottom when a new reply appears */
+  useEffect(() => {
+    if (sentReplies.length > 0) {
+      threadEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
+  }, [sentReplies.length])
 
   const handleStatusChange = useCallback(
     async (newStatus: string) => {
@@ -88,14 +104,30 @@ export default function TicketDetailPage({
 
   const handleSendReply = useCallback(() => {
     if (!replyText.trim() || !ticket) return
+    const replyId = crypto.randomUUID()
+    const text = replyText.trim()
+
+    /* immediately add as "sending" */
+    setSentReplies((prev) => [
+      ...prev,
+      { id: replyId, text, sentAt: new Date(), status: "sending" },
+    ])
+    setReplyText("")
     setReplySending(true)
-    // Simulated send — this would hit an API endpoint in production
+
+    /* simulate network delay → delivered → read */
     setTimeout(() => {
+      setSentReplies((prev) =>
+        prev.map((r) => (r.id === replyId ? { ...r, status: "delivered" } : r))
+      )
       setReplySending(false)
-      setReplySent(true)
-      setReplyText("")
-      setTimeout(() => setReplySent(false), 3000)
-    }, 1200)
+    }, 900)
+
+    setTimeout(() => {
+      setSentReplies((prev) =>
+        prev.map((r) => (r.id === replyId ? { ...r, status: "read" } : r))
+      )
+    }, 3500)
   }, [replyText, ticket])
 
   if (loading) return <TicketDetailSkeleton />
@@ -237,57 +269,130 @@ export default function TicketDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
         {/* Left column */}
         <div className="flex flex-col gap-5">
-          {/* Customer message */}
+          {/* ── Conversation thread ───────────────────────────── */}
           <div className="rounded-2xl bg-card border border-border/50 shadow-sm overflow-hidden">
+            {/* Thread header */}
             <div className="px-6 py-3 border-b border-border/30 flex items-center gap-2">
-              <div className="h-6 w-6 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                <span className="text-[10px] font-bold text-muted-foreground">
-                  {ticket.customer_name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .slice(0, 2)
-                    .toUpperCase()}
-                </span>
-              </div>
+              <Mail className="h-3.5 w-3.5 text-muted-foreground/50" />
               <span className="text-xs font-medium text-foreground">
-                {ticket.customer_name}
+                Conversation
               </span>
               <span className="text-[11px] text-muted-foreground/50 ml-auto">
-                {new Date(ticket.created_at).toLocaleString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
+                {sentReplies.length > 0
+                  ? `${sentReplies.length + 1} messages`
+                  : "1 message"}
               </span>
             </div>
-            <div className="px-6 py-5">
-              {ticket.content.split("\n").map((line, i) => (
-                <p
-                  key={i}
-                  className={cn(
-                    "text-[14px] leading-[1.8] text-foreground/85",
-                    !line.trim() && "h-3"
-                  )}
+
+            <div className="flex flex-col divide-y divide-border/20">
+              {/* ── Customer's original message ─── */}
+              <div className="px-6 py-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="h-7 w-7 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                    <span className="text-[10px] font-bold text-muted-foreground">
+                      {ticket.customer_name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .slice(0, 2)
+                        .toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-medium text-foreground leading-tight">
+                      {ticket.customer_name}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/50 leading-tight">
+                      {new Date(ticket.created_at).toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                </div>
+                <div className="pl-9">
+                  {ticket.content.split("\n").map((line, i) => (
+                    <p
+                      key={i}
+                      className={cn(
+                        "text-[14px] leading-[1.8] text-foreground/85",
+                        !line.trim() && "h-3"
+                      )}
+                    >
+                      {line || "\u00A0"}
+                    </p>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Sent replies (mock-persisted in session) ─── */}
+              {sentReplies.map((reply) => (
+                <div
+                  key={reply.id}
+                  className="px-6 py-5 bg-primary/[0.02] animate-in fade-in slide-in-from-bottom-2 duration-300"
                 >
-                  {line || "\u00A0"}
-                </p>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <span className="text-[10px] font-bold text-primary">
+                        You
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-medium text-foreground leading-tight">
+                        Support Agent
+                      </span>
+                      <span className="text-[10px] text-muted-foreground/50 leading-tight">
+                        {reply.sentAt.toLocaleString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                    <div className="ml-auto flex items-center gap-1">
+                      {reply.status === "sending" && (
+                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground/50">
+                          <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                          Sending
+                        </span>
+                      )}
+                      {reply.status === "delivered" && (
+                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground/50">
+                          <Check className="h-2.5 w-2.5" />
+                          Delivered
+                        </span>
+                      )}
+                      {reply.status === "read" && (
+                        <span className="flex items-center gap-1 text-[10px] text-primary/60">
+                          <CheckCheck className="h-2.5 w-2.5" />
+                          Read
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="pl-9">
+                    {reply.text.split("\n").map((line, i) => (
+                      <p
+                        key={i}
+                        className={cn(
+                          "text-[14px] leading-[1.8] text-foreground/85",
+                          !line.trim() && "h-3"
+                        )}
+                      >
+                        {line || "\u00A0"}
+                      </p>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
+            <div ref={threadEndRef} />
           </div>
 
-          {/* Reply success feedback */}
-          {replySent && (
-            <div className="rounded-xl bg-emerald-50 border border-emerald-200/60 px-4 py-3 flex items-center gap-2">
-              <Check className="h-3.5 w-3.5 text-emerald-600" />
-              <p className="text-xs text-emerald-700 font-medium">
-                Reply sent successfully
-              </p>
-            </div>
-          )}
-
-          {/* Reply box */}
+          {/* ── Reply composer ────────────────────────────────── */}
           <div className="rounded-2xl bg-card border border-border/50 shadow-sm overflow-hidden">
             <div className="px-6 py-3 border-b border-border/30">
               <span className="text-xs font-medium text-foreground">
@@ -387,7 +492,7 @@ export default function TicketDetailPage({
         </div>
 
         {/* Right column — AI Analysis */}
-        <AiAnalysisPanel ticket={ticket} />
+        <AiAnalysisPanel ticket={ticket} onTicketUpdate={setTicket} />
       </div>
     </div>
   )

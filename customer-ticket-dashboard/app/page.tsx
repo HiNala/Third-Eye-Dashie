@@ -50,12 +50,12 @@ function isNeedsAttention(t: Ticket) {
   )
 }
 function isPositiveFeedback(t: Ticket) {
-  return (
-    t.emotional_tone === "happy" || t.emotional_tone === "delighted"
-  )
+  /* Must be positive sentiment AND not already flagged as needs-attention */
+  return t.sentiment === "positive" && !isNeedsAttention(t)
 }
 function isNeutralInquiry(t: Ticket) {
-  return t.emotional_tone === "neutral" && t.sentiment !== "negative"
+  /* Must be neutral sentiment AND not caught by the other two buckets */
+  return t.sentiment === "neutral" && !isNeedsAttention(t)
 }
 function hasDemoValue(t: Ticket, field: keyof NonNullable<Ticket["demographics"]>) {
   const d = t.demographics?.[field]

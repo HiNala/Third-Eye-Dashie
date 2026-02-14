@@ -40,6 +40,11 @@ export async function updateStatus(id: string, status: string): Promise<Ticket> 
   return normalizeTicket(raw)
 }
 
+export async function updateAnalysis(id: string, updates: { sentiment?: string; emotional_tone?: string }): Promise<Ticket> {
+  const raw = await fetcher<Record<string, unknown>>(`/tickets/${id}/analysis`, { method: "POST", body: JSON.stringify(updates) })
+  return normalizeTicket(raw)
+}
+
 export async function ingestTickets(payload: IngestRequest): Promise<IngestResponse> {
   return fetcher<IngestResponse>("/ingest", { method: "POST", body: JSON.stringify(payload) })
 }

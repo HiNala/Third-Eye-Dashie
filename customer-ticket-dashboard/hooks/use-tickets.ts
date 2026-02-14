@@ -50,6 +50,6 @@ export function useTicket(id: string | null) {
       api.fetchTicket(id).then(setTicket).catch((e) => { setError(e instanceof Error ? e : new Error(String(e))); setTicket(mockTickets.find((t) => t.id === id) ?? null) }).finally(() => setLoading(false))
     }
   }, [id])
-  return { ticket, loading, error }
+  return { ticket, setTicket, loading, error }
 }
 
