@@ -260,7 +260,6 @@ ticket-sentiment-engine/
       llm/
         __init__.py
         base.py            # Abstract LLMProvider interface
-        prompt_loader.py   # Loads prompts from prompts/ directory
         openai_provider.py # OpenAI implementation
         anthropic_provider.py # Anthropic implementation
         local_provider.py  # Local/Ollama implementation
@@ -271,9 +270,6 @@ ticket-sentiment-engine/
       __init__.py
       session.py         # Async DB session factory
       base.py            # Declarative base
-  prompts/
-    system.md            # LLM system prompt (shared by all providers)
-    user_template.md     # User prompt template ($tag_schema, $content placeholders)
   alembic/               # DB migrations
   tag_schema.yaml        # Controlled vocabulary for tags
   requirements.txt
@@ -304,9 +300,6 @@ EMBEDDING_MODEL=text-embedding-3-small
 
 # --- App ---
 APP_PORT=8000
-
-# --- Prompts (optional, defaults to prompts/ in project root) ---
-PROMPT_DIR=prompts                    # directory containing system.md and user_template.md
 ```
 
 ---
@@ -335,16 +328,7 @@ The factory (`services/llm/factory.py`) reads `LLM_PROVIDER` from config and ret
 - **`anthropic`** -- Uses `anthropic` SDK with tool_use for structured extraction
 - **`local`** -- Hits an OpenAI-compatible API (e.g. Ollama, vLLM) at `LOCAL_LLM_BASE_URL`
 
-Each provider parses LLM responses into a shared `AnalysisResult` Pydantic model, so the rest of the app is provider-agnostic.
-
-### Externalized Prompts
-
-LLM prompts live in the `prompts/` directory as markdown files, not in Python code:
-
-- **`prompts/system.md`** -- System prompt shared by all providers. Defines the analysis task, allowed extractions, and privacy guidelines.
-- **`prompts/user_template.md`** -- User prompt template with `$tag_schema` and `$content` placeholders, including the expected JSON output structure.
-
-A shared `prompt_loader.py` utility loads and caches these files at runtime. To customize prompt behavior, edit the markdown files -- no Python code changes required. The prompt directory can be overridden via the `PROMPT_DIR` environment variable.
+Each provider is responsible for formatting prompts and parsing responses into a shared `AnalysisResult` Pydantic model, so the rest of the app is provider-agnostic.
 
 Embedding provider can be configured independently (`EMBEDDING_PROVIDER`) since you may want a cloud LLM but local embeddings, or vice versa.
 
