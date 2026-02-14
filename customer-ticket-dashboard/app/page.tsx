@@ -98,13 +98,7 @@ const TONE_ACCENT: Record<string, string> = {
 
 /* ── tiny ticket row ─────────────────────────────────────────── */
 
-function TicketRow({
-  ticket,
-  showVip,
-}: {
-  ticket: Ticket
-  showVip?: boolean
-}) {
+function TicketRow({ ticket }: { ticket: Ticket }) {
   const tone = ticket.emotional_tone ?? "neutral"
   const accentClass = TONE_ACCENT[tone] ?? "border-l-border"
   const today = isToday(ticket.created_at)
@@ -124,9 +118,6 @@ function TicketRow({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/60 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
             </span>
-          )}
-          {showVip && ticket.is_vip && (
-            <Crown className="h-3 w-3 text-amber-500 shrink-0" />
           )}
           <p className="text-[13px] font-medium text-foreground truncate leading-snug group-hover:text-foreground/80 transition-colors">
             {ticket.title}
@@ -257,12 +248,10 @@ const MAX_VISIBLE = 4
 function TicketSection({
   tickets,
   emptyText,
-  showVip,
   overflowLink,
 }: {
   tickets: Ticket[]
   emptyText: string
-  showVip?: boolean
   overflowLink?: string
 }) {
   const visible = tickets.slice(0, MAX_VISIBLE)
@@ -280,7 +269,7 @@ function TicketSection({
   return (
     <div className="flex flex-col gap-0.5">
       {visible.map((t) => (
-        <TicketRow key={t.id} ticket={t} showVip={showVip} />
+        <TicketRow key={t.id} ticket={t} />
       ))}
       {overflow > 0 && overflowLink && (
         <Link
