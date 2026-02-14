@@ -4,21 +4,21 @@ import { useMemo } from "react"
 import Link from "next/link"
 import {
   AlertTriangle,
-  Crown,
-  Truck,
   ArrowRight,
-  RotateCcw,
-  ShieldCheck,
-  Wrench,
-  Package,
-  Megaphone,
-  Lightbulb,
-  CreditCard,
   Inbox,
   CheckCircle2,
   Clock,
   TrendingUp,
   Sparkles,
+  SmilePlus,
+  HelpCircle,
+  Flame,
+  ChevronUp,
+  Minus,
+  Heart,
+  Briefcase,
+  MapPin,
+  Users,
 } from "lucide-react"
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts"
 import { useTickets } from "@/hooks/use-tickets"
@@ -35,17 +35,12 @@ import type { Ticket, EmotionalTone } from "@/lib/types"
 
 /* ── helpers ─────────────────────────────────────────────────── */
 
-function hasTopic(t: Ticket, topic: string) {
-  return (t.tags ?? []).some(
-    (tg) => tg.category === "topics" && tg.value === topic
-  )
-}
 function hasPriority(t: Ticket, p: string) {
   return (t.tags ?? []).some(
     (tg) => tg.category === "priority" && tg.value === p
   )
 }
-function isHighPriority(t: Ticket) {
+function isNeedsAttention(t: Ticket) {
   return (
     t.sentiment === "negative" ||
     t.emotional_tone === "angry" ||
@@ -53,6 +48,18 @@ function isHighPriority(t: Ticket) {
     hasPriority(t, "urgent") ||
     hasPriority(t, "high")
   )
+}
+function isPositiveFeedback(t: Ticket) {
+  return (
+    t.emotional_tone === "happy" || t.emotional_tone === "delighted"
+  )
+}
+function isNeutralInquiry(t: Ticket) {
+  return t.emotional_tone === "neutral" && t.sentiment !== "negative"
+}
+function hasDemoValue(t: Ticket, field: keyof NonNullable<Ticket["demographics"]>) {
+  const d = t.demographics?.[field]
+  return d?.value != null && d.value !== "" && d.confidence > 0
 }
 
 function isToday(dateStr: string) {
@@ -287,55 +294,83 @@ function TicketSection({
   )
 }
 
-/* ── bottom category card ───────────────────────────────────── */
+/* ── bottom insight cards ─────────────────────────────────────── */
 
-const categoryConfig: Record<
-  string,
-  { label: string; icon: React.ReactNode; style: string; hover: string }
-> = {
-  returns: {
-    label: "Returns",
-    icon: <RotateCcw className="h-4 w-4" />,
-    style: "text-teal-700 border-teal-200/50",
-    hover: "hover:bg-teal-50 hover:border-teal-200",
+type InsightCard = {
+  key: string
+  label: string
+  icon: React.ReactNode
+  style: string
+  hover: string
+  filter: (t: Ticket) => boolean
+  href: string
+}
+
+const insightCards: InsightCard[] = [
+  {
+    key: "urgent",
+    label: "Urgent",
+    icon: <Flame className="h-4 w-4" />,
+    style: "text-rose-700 border-rose-200/50",
+    hover: "hover:bg-rose-50 hover:border-rose-200",
+    filter: (t) => hasPriority(t, "urgent"),
+    href: "/tickets?sentiment=negative",
   },
-  warranty: {
-    label: "Warranty",
-    icon: <ShieldCheck className="h-4 w-4" />,
-    style: "text-amber-700 border-amber-200/50",
-    hover: "hover:bg-amber-50 hover:border-amber-200",
+  {
+    key: "high",
+    label: "High Priority",
+    icon: <ChevronUp className="h-4 w-4" />,
+    style: "text-orange-700 border-orange-200/50",
+    hover: "hover:bg-orange-50 hover:border-orange-200",
+    filter: (t) => hasPriority(t, "high"),
+    href: "/tickets?sentiment=negative",
   },
-  product: {
-    label: "Troubleshooting",
-    icon: <Wrench className="h-4 w-4" />,
+  {
+    key: "normal",
+    label: "Normal",
+    icon: <Minus className="h-4 w-4" />,
     style: "text-slate-600 border-slate-200/50",
     hover: "hover:bg-slate-50 hover:border-slate-200",
+    filter: (t) => hasPriority(t, "normal"),
+    href: "/tickets",
   },
-  "feature-request": {
-    label: "Feature Requests",
-    icon: <Lightbulb className="h-4 w-4" />,
+  {
+    key: "health",
+    label: "Health-Related",
+    icon: <Heart className="h-4 w-4" />,
+    style: "text-pink-600 border-pink-200/50",
+    hover: "hover:bg-pink-50 hover:border-pink-200",
+    filter: (t) => hasDemoValue(t, "health_conditions"),
+    href: "/tickets",
+  },
+  {
+    key: "professional",
+    label: "Professional",
+    icon: <Briefcase className="h-4 w-4" />,
     style: "text-indigo-600 border-indigo-200/50",
     hover: "hover:bg-indigo-50 hover:border-indigo-200",
+    filter: (t) => hasDemoValue(t, "occupation"),
+    href: "/tickets",
   },
-  billing: {
-    label: "Billing",
-    icon: <CreditCard className="h-4 w-4" />,
-    style: "text-violet-600 border-violet-200/50",
-    hover: "hover:bg-violet-50 hover:border-violet-200",
+  {
+    key: "regional",
+    label: "Regional",
+    icon: <MapPin className="h-4 w-4" />,
+    style: "text-teal-600 border-teal-200/50",
+    hover: "hover:bg-teal-50 hover:border-teal-200",
+    filter: (t) => hasDemoValue(t, "location"),
+    href: "/tickets",
   },
-  accessories: {
-    label: "Accessories",
-    icon: <Package className="h-4 w-4" />,
-    style: "text-stone-600 border-stone-200/50",
-    hover: "hover:bg-stone-50 hover:border-stone-200",
+  {
+    key: "family",
+    label: "Family",
+    icon: <Users className="h-4 w-4" />,
+    style: "text-amber-700 border-amber-200/50",
+    hover: "hover:bg-amber-50 hover:border-amber-200",
+    filter: (t) => hasDemoValue(t, "family_status"),
+    href: "/tickets",
   },
-  company: {
-    label: "Media & Inquiries",
-    icon: <Megaphone className="h-4 w-4" />,
-    style: "text-sky-600 border-sky-200/50",
-    hover: "hover:bg-sky-50 hover:border-sky-200",
-  },
-}
+]
 
 /* ── chart colors ────────────────────────────────────────────── */
 
@@ -355,15 +390,16 @@ export default function DashboardPage() {
   const data = useMemo(() => {
     const open = tickets.filter((t) => t.status !== "closed")
     const closed = tickets.filter((t) => t.status === "closed")
-    const hp = sortByUrgency(
-      tickets.filter((t) => isHighPriority(t) && t.status !== "closed")
+
+    // Three main columns
+    const needsAttention = sortByUrgency(
+      tickets.filter((t) => isNeedsAttention(t) && t.status !== "closed")
     )
-    const vip = sortByUrgency(
-      tickets.filter((t) => t.is_vip && t.status !== "closed")
-    )
-    const ship = sortByUrgency(
-      tickets.filter((t) => hasTopic(t, "shipping") && t.status !== "closed")
-    )
+    const positiveFeedback = [...tickets.filter((t) => isPositiveFeedback(t) && t.status !== "closed")]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    const neutralInquiries = [...tickets.filter((t) => isNeutralInquiry(t) && t.status !== "closed")]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
     const inProgress = tickets.filter((t) => t.status === "in_progress")
     const today = tickets.filter((t) => isToday(t.created_at))
 
@@ -396,19 +432,17 @@ export default function DashboardPage() {
     const resolutionRate =
       tickets.length > 0 ? closed.length / tickets.length : 0
 
-    // categories — with latest ticket title for preview
-    const catKeys = Object.keys(categoryConfig)
-    const cats: Record<string, { tickets: Ticket[]; latest: Ticket | null }> =
-      {}
-    for (const key of catKeys) {
-      const catTickets = tickets.filter(
-        (t) => hasTopic(t, key) && t.status !== "closed"
+    // insight cards — count by filter
+    const insights: Record<string, { count: number; latest: Ticket | null }> = {}
+    for (const card of insightCards) {
+      const matched = tickets.filter(
+        (t) => card.filter(t) && t.status !== "closed"
       )
-      cats[key] = {
-        tickets: catTickets,
+      insights[card.key] = {
+        count: matched.length,
         latest:
-          catTickets.length > 0
-            ? catTickets.sort(
+          matched.length > 0
+            ? matched.sort(
                 (a, b) =>
                   new Date(b.created_at).getTime() -
                   new Date(a.created_at).getTime()
@@ -424,10 +458,10 @@ export default function DashboardPage() {
       inProgressCount: inProgress.length,
       todayCount: today.length,
       resolutionRate,
-      highPriority: hp,
-      vipTickets: vip,
-      shippingTickets: ship,
-      categories: cats,
+      needsAttention,
+      positiveFeedback,
+      neutralInquiries,
+      insights,
       emotionData: eData,
       avgConf,
     }
@@ -493,25 +527,25 @@ export default function DashboardPage() {
               <StatPill
                 icon={<AlertTriangle className="h-4 w-4 text-rose-600" />}
                 label="Needs Attention"
-                value={data.highPriority.length}
+                value={data.needsAttention.length}
                 accent="bg-rose-50"
                 href="/tickets?sentiment=negative"
               />
 
               <StatPill
-                icon={<Crown className="h-4 w-4 text-amber-600" />}
-                label="VIP Open"
-                value={data.vipTickets.length}
-                accent="bg-amber-50"
-                href="/tickets?vip=true"
+                icon={<SmilePlus className="h-4 w-4 text-emerald-600" />}
+                label="Positive"
+                value={data.positiveFeedback.length}
+                accent="bg-emerald-50"
+                href="/tickets?sentiment=positive"
               />
 
               <StatPill
-                icon={<Truck className="h-4 w-4 text-sky-600" />}
-                label="Shipping"
-                value={data.shippingTickets.length}
+                icon={<HelpCircle className="h-4 w-4 text-sky-600" />}
+                label="Inquiries"
+                value={data.neutralInquiries.length}
                 accent="bg-sky-50"
-                href="/tickets?topic=shipping"
+                href="/tickets?sentiment=neutral"
               />
 
               <div className="h-8 w-px bg-border/40 shrink-0 hidden sm:block" />
@@ -637,7 +671,7 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* ── Three columns: Needs Attention | VIP | Shipping ── */}
+      {/* ── Three columns: Needs Attention | Positive Feedback | Neutral Inquiries ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Needs Attention */}
         <Card className="border-border/50 shadow-sm flex flex-col">
@@ -645,57 +679,56 @@ export default function DashboardPage() {
             <SectionHeader
               icon={<AlertTriangle className="h-4 w-4 text-rose-600" />}
               title="Needs Attention"
-              count={data.highPriority.length}
+              count={data.needsAttention.length}
               iconClass="bg-rose-50"
               link="/tickets?sentiment=negative"
             />
           </CardHeader>
           <CardContent className="px-2 pb-3 pt-0 flex-1">
             <TicketSection
-              tickets={data.highPriority}
+              tickets={data.needsAttention}
               emptyText="All clear — no urgent tickets"
-              showVip
               overflowLink="/tickets?sentiment=negative"
             />
           </CardContent>
         </Card>
 
-        {/* VIP Customers */}
+        {/* Positive Feedback */}
         <Card className="border-border/50 shadow-sm flex flex-col">
           <CardHeader className="pb-2 pt-4 px-4">
             <SectionHeader
-              icon={<Crown className="h-4 w-4 text-amber-600" />}
-              title="VIP Customers"
-              count={data.vipTickets.length}
-              iconClass="bg-amber-50"
-              link="/tickets?vip=true"
+              icon={<SmilePlus className="h-4 w-4 text-emerald-600" />}
+              title="Positive Feedback"
+              count={data.positiveFeedback.length}
+              iconClass="bg-emerald-50"
+              link="/tickets?sentiment=positive"
             />
           </CardHeader>
           <CardContent className="px-2 pb-3 pt-0 flex-1">
             <TicketSection
-              tickets={data.vipTickets}
-              emptyText="No open VIP tickets"
-              overflowLink="/tickets?vip=true"
+              tickets={data.positiveFeedback}
+              emptyText="No positive feedback yet"
+              overflowLink="/tickets?sentiment=positive"
             />
           </CardContent>
         </Card>
 
-        {/* Shipping */}
+        {/* Neutral Inquiries */}
         <Card className="border-border/50 shadow-sm flex flex-col">
           <CardHeader className="pb-2 pt-4 px-4">
             <SectionHeader
-              icon={<Truck className="h-4 w-4 text-sky-600" />}
-              title="Shipping"
-              count={data.shippingTickets.length}
+              icon={<HelpCircle className="h-4 w-4 text-sky-600" />}
+              title="Neutral Inquiries"
+              count={data.neutralInquiries.length}
               iconClass="bg-sky-50"
-              link="/tickets?topic=shipping"
+              link="/tickets?sentiment=neutral"
             />
           </CardHeader>
           <CardContent className="px-2 pb-3 pt-0 flex-1">
             <TicketSection
-              tickets={data.shippingTickets}
-              emptyText="No open shipping tickets"
-              overflowLink="/tickets?topic=shipping"
+              tickets={data.neutralInquiries}
+              emptyText="No neutral inquiries"
+              overflowLink="/tickets?sentiment=neutral"
             />
           </CardContent>
         </Card>
