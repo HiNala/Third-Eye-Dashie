@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+.gitignore
+ticket-sentiment-engine
+*.md
+.env
+.env.local
+.env.example

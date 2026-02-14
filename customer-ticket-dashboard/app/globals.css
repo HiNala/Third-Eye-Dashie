@@ -1,0 +1,138 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 40 33% 98%;
+    --foreground: 30 10% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 30 10% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 30 10% 15%;
+    --primary: 32 95% 44%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 20% 94%;
+    --secondary-foreground: 30 10% 15%;
+    --muted: 40 15% 94%;
+    --muted-foreground: 30 6% 45%;
+    --accent: 40 60% 92%;
+    --accent-foreground: 30 10% 15%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 40 12% 88%;
+    --input: 40 12% 88%;
+    --ring: 32 95% 44%;
+    --radius: 0.625rem;
+    --chart-1: 32 95% 44%;
+    --chart-2: 160 60% 40%;
+    --chart-3: 0 72% 55%;
+    --chart-4: 30 80% 55%;
+    --chart-5: 280 65% 60%;
+
+    /* Scrollbar tokens */
+    --scrollbar-thumb: hsl(30 6% 45% / 0.15);
+    --scrollbar-thumb-hover: hsl(30 6% 45% / 0.3);
+    --scrollbar-track: transparent;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ── Smooth global transitions ───────────────────────────────── */
+@layer utilities {
+  .animate-in {
+    animation: animate-in 0.3s ease-out;
+  }
+  @keyframes animate-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCROLLBAR STYLES — unified across Webkit, Firefox & Radix
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Firefox ─────────────────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* ── Webkit / Blink (Chrome, Edge, Safari) ───────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Hide scrollbar in very small containers (like filter popovers) */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ── Auto-hide pattern: invisible until container is hovered ── */
+.scrollbar-autohide::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+.scrollbar-autohide:hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+.scrollbar-autohide:hover::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Firefox auto-hide via scrollbar-color */
+.scrollbar-autohide {
+  scrollbar-color: transparent var(--scrollbar-track);
+}
+.scrollbar-autohide:hover {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* ── Invisible scrollbar (functional scroll, hidden bar) ───── */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  scrollbar-width: none;
+}
